@@ -25,7 +25,7 @@ jobs:
           formula-path: Formula/kommit.rb
           homebrew-tap: ${{ github.repository_owner }}/homebrew-zapfhahn
           base-branch: main
-          download-url: https://github.com/${{ github.repository }}/archive/refs/tags/v${{ steps.extract_version.outputs.VERSION }.tar.gz
+          download-url: https://github.com/${{ github.repository }}/archive/refs/tags/v${{ steps.extract_version.outputs.VERSION }}.tar.gz
           commit-message: |
             {{formulaName}} {{version}}
         env:

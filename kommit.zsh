@@ -52,7 +52,7 @@ fi
 
 # Extract ticket number from branch name
 # feat/ABC-123 -> ABC-123
-branch_name=$(git rev-parse --abbrev-ref HEAD)
+branch_name=$(git branch --show-current)
 ticket_number=$(echo "$branch_name" | gsed -n 's|^\([^/]*/\)\?\([a-zA-Z]\+-[0-9]\+\).*|\2|p')
 
 # Construct commit message prefix

@@ -20,27 +20,20 @@ Kommit is a simple command-line tool that helps you create conventional commit m
 
 ## Installation
 
-1. Clone this repository or download the `kommit.zsh` file
-2. Make the script executable:
-   ```
-   chmod +x kommit.zsh
-   ```
-3. Add the script to your PATH or create an alias in your `.zshrc`:
-   ```
-   alias kommit="/path/to/kommit.zsh"
-   ```
+```
+brew tap andenkondor/zapfhahn
+brew install andenkondor/zapfhahn/kommit
+```
 
 ## Usage
 
 1. Stage your changes with `git add`
 2. Run the kommit script:
-   ```
-   kommit.zsh
-   ```
-   or if you set up an alias:
+
    ```
    kommit
    ```
+
 3. Select a conventional commit type from the list
 4. Complete your commit message in the editor
 5. Save and exit to finalize the commit

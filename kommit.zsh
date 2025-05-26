@@ -35,8 +35,8 @@ if [[ "$1" == "-h" || "$1" == "--help" ]]; then
 fi
 
 # Check for staged changes
-staged_files=$(git diff --cached --name-only)
-if [ -z "$staged_files" ]; then
+staged_changes=$(git diff --cached --name-status | sed $'s/\t/    /g')
+if [ -z "$staged_changes" ]; then
     echo "Error: No staged changes found."
     echo "Please stage your changes using 'git add' before running this script."
     exit 1
@@ -62,18 +62,44 @@ else
     commit_prefix="${commit_type}(${ticket_number}): "
 fi
 
-# Prepare commit message file
-commit_msg_file=$(git rev-parse --show-toplevel)/.git/COMMIT_EDITMSG
-echo "$commit_prefix" > "$commit_msg_file"
+# Get the last commit message
+last_commit_msg=$(git log -1 --pretty=%B)
+
+# Create temporary file with metadata
+temp_file=$(mktemp)
+cat > "$temp_file" << EOF
+$commit_prefix
+
+# --- Metadata ---
+# Current branch:
+# $branch_name
+# Last commit message:
+# $last_commit_msg
+#
+# Changes:
+# $staged_changes
+EOF
 
 # Open editor for commit message
-nvim +startinsert! "$commit_msg_file"
+nvim +startinsert! "$temp_file"
 
-# Commit if message is not empty
-if [ -s "$commit_msg_file" ]; then
-    git commit -n -F "$commit_msg_file"
-    echo "Commit created successfully!"
-else
+# Check if message is empty (only contains the prefix)
+if [ "$(gsed -n '1p' "$temp_file")" = "$commit_prefix" ]; then
     echo "Error: Commit message is empty, commit aborted."
+    rm "$temp_file"
     exit 1
 fi
+
+# Extract just the commit message (everything before the metadata separator)
+commit_msg=$(gsed -n '1,/^# --- Metadata/p' "$temp_file" | gsed '$d')
+
+# Write to actual commit message file
+commit_msg_file=$(git rev-parse --show-toplevel)/.git/COMMIT_EDITMSG
+echo "$commit_msg" > "$commit_msg_file"
+
+# Clean up temp file
+rm "$temp_file"
+
+# Commit
+git commit -n -F "$commit_msg_file"
+echo "Commit created successfully!"

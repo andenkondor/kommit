@@ -42,8 +42,6 @@ if [ -z "$staged_changes" ]; then
     exit 1
 fi
 
-# Select commit type using fzf
-echo "Select commit type:"
 commit_type=$(printf "%s\n" "${CONVENTIONAL_COMMITS[@]}" | fzf --exact --height 40% --border --ansi)
 if [ -z "$commit_type" ]; then
     echo "Error: No commit type selected."

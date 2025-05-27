@@ -9,8 +9,29 @@ permissions:
   contents: write
 
 jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Create tar.gz archive
+        run: tar -czf kommit.tar.gz kommit.zsh
+
+      - name: Upload binary to release
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: kommit.tar.gz
+          asset_name: kommit.tar.gz
+          tag: ${{ github.ref }}
+          overwrite: true
+
   update-homebrew:
     name: Update Homebrew Formula
+    needs: release
     runs-on: ubuntu-latest
     steps:
       - name: Extract version
@@ -24,7 +45,7 @@ jobs:
           formula-path: Formula/kommit.rb
           homebrew-tap: ${{ github.repository_owner }}/homebrew-zapfhahn
           base-branch: main
-          download-url: https://github.com/${{ github.repository }}/archive/refs/tags/v${{ steps.extract_version.outputs.VERSION }}.tar.gz
+          download-url: https://github.com/${{ github.repository }}/releases/download/v${{ steps.extract_version.outputs.VERSION }}/kommit.tar.gz
           commit-message: |
             {{formulaName}} {{version}}
         env:

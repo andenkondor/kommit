@@ -35,7 +35,7 @@ if [[ "$1" == "-h" || "$1" == "--help" ]]; then
 fi
 
 # Check for staged changes
-staged_changes=$(git diff --cached --name-status | sed $'s/\t/    /g')
+staged_changes=$(git diff --cached --name-status | sed $'s/\t/    /g' | sed 's/^/# /')
 if [ -z "$staged_changes" ]; then
     echo "Error: No staged changes found."
     echo "Please stage your changes using 'git add' before running this script."
@@ -75,7 +75,7 @@ $commit_prefix
 # $last_commit_msg
 #
 # Changes:
-# $staged_changes
+$staged_changes
 EOF
 
 # Open editor for commit message

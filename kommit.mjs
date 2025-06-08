@@ -127,6 +127,7 @@ function getWipTemplate() {
 async function getTemplate(ticketNumber) {
   const contentWidth = 60;
   const typeWidth = 20;
+  const keyWordsWidth = 75;
 
   const allTemplates = [
     ...getPredefinedTemplates(ticketNumber),
@@ -134,6 +135,21 @@ async function getTemplate(ticketNumber) {
     ...(await getLogTemplates()),
     ...(await getReflogTemplates()),
   ].map((o, index) => ({ ...o, id: index }));
+
+  const truncateWithDotsAndPad = (string, length, direction) => {
+    if (!string) {
+      return "";
+    }
+
+    const dots = "...";
+    if (string.length >= length) {
+      string = string.slice(0, length - dots.length) + dots;
+    }
+
+    return direction === "left"
+      ? string.padStart(length)
+      : string.padEnd(length);
+  };
 
   const renderFzfLine = ({ id, content, type, keywords }, { isHeader }) => {
     const contentFragment = isHeader ? "Content" : content;
@@ -146,9 +162,9 @@ async function getTemplate(ticketNumber) {
 
     const fragments = [
       ...((isHeader && []) || [id]),
-      contentFragment.padEnd(contentWidth),
-      typeFragment.padEnd(typeWidth),
-      keywordsFragment,
+      truncateWithDotsAndPad(contentFragment, contentWidth, "right"),
+      truncateWithDotsAndPad(typeFragment, typeWidth, "right"),
+      truncateWithDotsAndPad(keywordsFragment, keyWordsWidth, "right"),
     ];
 
     return fragments.join(FZF_DELIMITER);

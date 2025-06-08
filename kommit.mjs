@@ -51,14 +51,14 @@ async function getAndVerifyStagedChanges() {
   return stagedChanges;
 }
 
-async function getTemplate(ticketNumber) {
+function getPredefinedTemplates(ticketNumber) {
   const typedTemplates = CONVENTIONAL_COMMITS.flatMap((cc) =>
     templates
       .filter(({ content }) => content.includes("{{commitType}}"))
       .map((t) => ({
         ...t,
         content: t.content.replace("{{commitType}}", cc),
-        keywords: t.keywords ? [...t.keywords, cc] : [cc],
+        keywords: [cc, ...t.keywords],
       })),
   );
 
@@ -66,7 +66,7 @@ async function getTemplate(ticketNumber) {
     ({ content }) => !content.includes("{{commitType}}"),
   );
 
-  const allTemplates = [...untypedTemplates, ...typedTemplates]
+  return [...untypedTemplates, ...typedTemplates]
     .filter(
       ({ content }) =>
         Boolean(ticketNumber) === content.includes("{{ticketNumber}}"),
@@ -74,11 +74,84 @@ async function getTemplate(ticketNumber) {
     .map((t) => ({
       ...t,
       content: t.content.replace("{{ticketNumber}}", ticketNumber),
-    }))
-    .map((o, index) => ({ ...o, id: index }));
+      keywords: [...t.keywords],
+      type: "template",
+    }));
+}
 
-  const renderFzfLine = ({ id, content, keywords }) => {
-    return `${id}${FZF_DELIMITER}${content.padEnd(20)}${FZF_DELIMITER}${keywords?.join(" ").padEnd(50 + content.padEnd(20).length)}`;
+async function getReflogTemplates() {
+  return (await $`git reflog`)
+    .lines()
+    .map((l) => {
+      const match = l.match(
+        /^(\w+)\s+([^\s]+):\scommit(?:\s\([^)]+\))?:\s(.*)/,
+      );
+
+      return match
+        ? {
+            content: match[3],
+            keywords: [
+              // hash
+              match[1],
+              // symbolic
+              match[2],
+            ],
+            type: "reflog",
+          }
+        : undefined;
+    })
+    .filter((l) => Boolean(l));
+}
+
+async function getLogTemplates() {
+  return (await $`git log --pretty=format:"%h|%d|%s" --date=short`)
+    .lines()
+    .map((l) => {
+      const [hash, refNames, ...messageParts] = l.split("|");
+
+      return {
+        content: messageParts[0],
+        keywords: [hash, refNames.trim().replace(/^\(|\)$/g, "")],
+        type: "log",
+      };
+    });
+}
+
+function getWipTemplate() {
+  return {
+    content: "--wip-- [skip ci]",
+    type: "wip",
+  };
+}
+
+async function getTemplate(ticketNumber) {
+  const contentWidth = 60;
+  const typeWidth = 20;
+
+  const allTemplates = [
+    ...getPredefinedTemplates(ticketNumber),
+    getWipTemplate(),
+    ...(await getLogTemplates()),
+    ...(await getReflogTemplates()),
+  ].map((o, index) => ({ ...o, id: index }));
+
+  const renderFzfLine = ({ id, content, type, keywords }, { isHeader }) => {
+    const contentFragment = isHeader ? "Content" : content;
+    const typeFragment = isHeader
+      ? "Type"
+      : type.charAt(0).toUpperCase() + type.slice(1).toLowerCase();
+    const keywordsFragment = isHeader
+      ? "Keywords"
+      : keywords?.join(" ").toLowerCase();
+
+    const fragments = [
+      ...((isHeader && []) || [id]),
+      contentFragment.padEnd(contentWidth),
+      typeFragment.padEnd(typeWidth),
+      keywordsFragment,
+    ];
+
+    return fragments.join(FZF_DELIMITER);
   };
 
   const chosenTemplateId = await $({
@@ -87,16 +160,18 @@ async function getTemplate(ticketNumber) {
     "fzf",
     "--accept-nth=1",
     "--border",
+    ...["--header", renderFzfLine({}, { isHeader: true })],
     "--color=fg:#d0d0d0,fg+:#d0d0d0,bg:#121212,bg+:#262626",
     "--color=hl:#5f87af,hl+:#5fd7ff,info:#afaf87,marker:#87ff00",
     "--color=prompt:#d7005f,spinner:#af5fff,pointer:#af5fff,header:#87afaf",
     "--exact",
     "--height=~100%",
     "--highlight-line",
-    "--nth=2",
+    "--nth=2..3",
     "--prompt=> ",
     "--reverse",
-    "--with-nth=2..3",
+    "--no-sort",
+    "--with-nth=2..4",
     ...["--delimiter", FZF_DELIMITER],
   ]}
 `.text();
@@ -130,7 +205,7 @@ async function createMessageFile(withContent) {
   return [messageFilePath, cleanUpCallback];
 }
 
-async function captureUserInput(filePath, { vimOptions }) {
+async function captureUserInput(filePath, { vimOptions = [] }) {
   const getLastModified = async () => (await $`stat -f %m ${filePath}`).text();
 
   const lastModifiedBaseline = await getLastModified();

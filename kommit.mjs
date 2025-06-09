@@ -46,6 +46,7 @@ const templates = [
     keywords: ["scoped"],
   },
   {
+    // https://github.com/ohmyzsh/ohmyzsh/blob/788eaa5930eeafceb0cc43f338b0bacf7a2e36a8/plugins/git/git.plugin.zsh#L365
     content: "--wip-- [skip ci]",
     type: "wip",
     always: true,

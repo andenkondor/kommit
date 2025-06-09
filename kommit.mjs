@@ -17,25 +17,28 @@ const CONVENTIONAL_COMMITS = [
   "style",
 ];
 
+const TICKET_NUMBER = "{{ticketNumber}}";
+const COMMIT_TYPE = "{{commitType}}";
+
 const templates = [
   {
-    content: "{{commitType}}({{ticketNumber}}): ",
+    content: `${COMMIT_TYPE}(${TICKET_NUMBER}): `,
     vimOptions: ["+startinsert!"],
     keywords: ["scoped"],
   },
   {
-    content: "{{ticketNumber}} - ",
+    content: `${TICKET_NUMBER} - `,
     vimOptions: ["+startinsert!"],
     keywords: ["plain"],
   },
   {
-    content: "{{commitType}}: ",
+    content: `${COMMIT_TYPE}: `,
     vimOptions: ["+startinsert!"],
     keywords: ["plain"],
   },
   {
-    content: "{{commitType}}(<scope>): ",
-    vimOptions: [...["-c", "norm da>"], "+startinsert"],
+    content: `${COMMIT_TYPE}(<scope>): `,
+    vimOptions: [...["-c", "norm da>"], "+startinsert!"],
     keywords: ["scoped"],
   },
   {
@@ -59,27 +62,26 @@ async function getAndVerifyStagedChanges() {
 function getPredefinedTemplates(ticketNumber) {
   const conventionalTemplates = CONVENTIONAL_COMMITS.flatMap((cc) =>
     templates
-      .filter(({ content }) => content.includes("{{commitType}}"))
+      .filter(({ content }) => content.includes(COMMIT_TYPE))
       .map((t) => ({
         ...t,
-        content: t.content.replace("{{commitType}}", cc),
+        content: t.content.replace(COMMIT_TYPE, cc),
         keywords: [cc, ...t.keywords],
       })),
   );
 
   const nonConventionalTemplates = templates.filter(
-    ({ content }) => !content.includes("{{commitType}}"),
+    ({ content }) => !content.includes(COMMIT_TYPE),
   );
 
   return [...nonConventionalTemplates, ...conventionalTemplates]
     .filter(
       ({ content, always }) =>
-        Boolean(ticketNumber) === content.includes("{{ticketNumber}}") ||
-        always,
+        Boolean(ticketNumber) === content.includes(TICKET_NUMBER) || always,
     )
     .map((t) => ({
       ...t,
-      content: t.content.replace("{{ticketNumber}}", ticketNumber),
+      content: t.content.replace(TICKET_NUMBER, ticketNumber),
       keywords: [...(t.keywords ?? [])],
       type: t.type ?? "template",
     }));

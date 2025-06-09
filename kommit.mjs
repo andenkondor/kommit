@@ -42,7 +42,7 @@ const templates = [
   },
   {
     content: `${COMMIT_TYPE}(<scope>): `,
-    vimOptions: [...["-c", "norm da>"], "+startinsert!"],
+    vimOptions: [...["-c", "norm da>"], "+startinsert"],
     keywords: ["scoped"],
   },
   {

@@ -2,6 +2,10 @@
 
 $.quiet = true;
 
+const CONTENT_WIDTH = 60;
+const TYPE_WIDTH = 20;
+const KEY_WORDS_WIDTH = 75;
+
 const FZF_DELIMITER = "\t\t";
 const CONVENTIONAL_COMMITS = [
   "feat",
@@ -112,24 +116,18 @@ async function getReflogTemplates() {
 }
 
 async function getLogTemplates() {
-  return (await $`git log --pretty=format:"%h|%d|%s" --date=short`)
-    .lines()
-    .map((l) => {
-      const [hash, refNames, ...messageParts] = l.split("|");
+  return (await $`git log --pretty=format:"%h|%d|%s"`).lines().map((l) => {
+    const [hash, refNames, ...messageParts] = l.split("|");
 
-      return {
-        content: messageParts[0],
-        keywords: [hash, refNames.trim().replace(/^\(|\)$/g, "")],
-        type: "log",
-      };
-    });
+    return {
+      content: messageParts[0],
+      keywords: [hash, refNames.trim().replace(/^\(|\)$/g, "")],
+      type: "log",
+    };
+  });
 }
 
 async function getTemplate(ticketNumber) {
-  const contentWidth = 60;
-  const typeWidth = 20;
-  const keyWordsWidth = 75;
-
   const allTemplates = [
     ...getPredefinedTemplates(ticketNumber),
     ...(await getLogTemplates()),
@@ -162,9 +160,9 @@ async function getTemplate(ticketNumber) {
 
     const fragments = [
       ...((isHeader && []) || [id]),
-      truncateWithDotsAndPad(contentFragment, contentWidth, "right"),
-      truncateWithDotsAndPad(typeFragment, typeWidth, "right"),
-      truncateWithDotsAndPad(keywordsFragment, keyWordsWidth, "right"),
+      truncateWithDotsAndPad(contentFragment, CONTENT_WIDTH, "right"),
+      truncateWithDotsAndPad(typeFragment, TYPE_WIDTH, "right"),
+      truncateWithDotsAndPad(keywordsFragment, KEY_WORDS_WIDTH, "right"),
     ];
 
     return fragments.join(FZF_DELIMITER);

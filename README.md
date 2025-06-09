@@ -6,17 +6,15 @@ Kommit is a simple command-line tool that helps you create conventional commit m
 
 - Automatically checks for staged changes before committing
 - Provides an interactive selection of conventional commit types using fzf
-- Extracts ticket/issue numbers from branch names to use as scope
+- Intelligently extracts ticket/issue number from your current branch
 - Opens your editor to complete the commit message
 - Aborts the commit if the message is empty
 
 ## Requirements
 
 - Git
-- zsh
+- zx
 - fzf (for interactive selection)
-- gsed (GNU sed)
-- nvim (or modify the script to use your preferred editor)
 
 ## Installation
 
@@ -40,24 +38,14 @@ brew install andenkondor/zapfhahn/kommit
 
 ## How It Works
 
-Kommit follows the [Conventional Commits](https://www.conventionalcommits.org/) specification to structure your commit messages. It automatically extracts ticket/issue numbers from your branch name (if available) to use as the scope.
+Kommit follows the [Conventional Commits](https://www.conventionalcommits.org/) specification to structure your commit messages. It intelligently extracts ticket/issue numbers from your branch name and lets you choose which pattern to use.
 
-For example, if your branch is named `feature/JIRA-123-add-new-feature`, kommit will extract `JIRA-123` as the scope, resulting in a commit message like:
+For example:
+- If your branch is named `feature/JIRA-123-add-new-feature`, kommit will offer to use `JIRA-123` as the scope
+- If your branch is named `main`, no scope will be used
 
+The resulting commit message will look like:
 ```
-feat(JIRA-123): Your commit message here
+feat(JIRA-123): <Your commit message here>
 ```
 
-## Supported Conventional Commit Types
-
-- feat: A new feature
-- fix: A bug fix
-- chore: Routine tasks, maintenance, etc.
-- test: Adding or refactoring tests
-- build: Changes to build system or dependencies
-- docs: Documentation only changes
-- ci: Changes to CI configuration
-- refactor: Code changes that neither fix bugs nor add features
-- perf: Performance improvements
-- revert: Reverting a previous commit
-- style: Changes that don't affect code meaning (formatting, etc.)

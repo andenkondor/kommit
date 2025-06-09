@@ -38,6 +38,11 @@ const templates = [
     vimOptions: [...["-c", "norm da>"], "+startinsert"],
     keywords: ["scoped"],
   },
+  {
+    content: "--wip-- [skip ci]",
+    type: "wip",
+    always: true,
+  },
 ];
 
 async function getAndVerifyStagedChanges() {
@@ -52,7 +57,7 @@ async function getAndVerifyStagedChanges() {
 }
 
 function getPredefinedTemplates(ticketNumber) {
-  const typedTemplates = CONVENTIONAL_COMMITS.flatMap((cc) =>
+  const conventionalTemplates = CONVENTIONAL_COMMITS.flatMap((cc) =>
     templates
       .filter(({ content }) => content.includes("{{commitType}}"))
       .map((t) => ({
@@ -62,20 +67,21 @@ function getPredefinedTemplates(ticketNumber) {
       })),
   );
 
-  const untypedTemplates = templates.filter(
+  const nonConventionalTemplates = templates.filter(
     ({ content }) => !content.includes("{{commitType}}"),
   );
 
-  return [...untypedTemplates, ...typedTemplates]
+  return [...nonConventionalTemplates, ...conventionalTemplates]
     .filter(
-      ({ content }) =>
-        Boolean(ticketNumber) === content.includes("{{ticketNumber}}"),
+      ({ content, always }) =>
+        Boolean(ticketNumber) === content.includes("{{ticketNumber}}") ||
+        always,
     )
     .map((t) => ({
       ...t,
       content: t.content.replace("{{ticketNumber}}", ticketNumber),
-      keywords: [...t.keywords],
-      type: "template",
+      keywords: [...(t.keywords ?? [])],
+      type: t.type ?? "template",
     }));
 }
 
@@ -117,13 +123,6 @@ async function getLogTemplates() {
     });
 }
 
-function getWipTemplate() {
-  return {
-    content: "--wip-- [skip ci]",
-    type: "wip",
-  };
-}
-
 async function getTemplate(ticketNumber) {
   const contentWidth = 60;
   const typeWidth = 20;
@@ -131,7 +130,6 @@ async function getTemplate(ticketNumber) {
 
   const allTemplates = [
     ...getPredefinedTemplates(ticketNumber),
-    getWipTemplate(),
     ...(await getLogTemplates()),
     ...(await getReflogTemplates()),
   ].map((o, index) => ({ ...o, id: index }));

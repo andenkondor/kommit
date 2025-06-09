@@ -117,12 +117,12 @@ async function getReflogTemplates() {
 }
 
 async function getLogTemplates() {
-  return (await $`git log --pretty=format:"%h|%d|%s"`).lines().map((l) => {
-    const [hash, refNames, ...messageParts] = l.split("|");
+  return (await $`git log --pretty=format:"%h|%s"`).lines().map((l) => {
+    const [hash, ...messageParts] = l.split("|");
 
     return {
       content: messageParts[0],
-      keywords: [hash, refNames.trim().replace(/^\(|\)$/g, "")],
+      keywords: [hash],
       type: "log",
     };
   });

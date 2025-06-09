@@ -224,7 +224,10 @@ async function captureUserInput(filePath, { vimOptions = [] }) {
   const getLastModified = async () => (await $`stat -f %m ${filePath}`).text();
 
   const lastModifiedBaseline = await getLastModified();
-  await $.spawnSync("nvim", [filePath, ...vimOptions], {
+
+  const vimishEditor = (await which("nvim", { nothrow: true })) ?? "vim";
+
+  await $.spawnSync(vimishEditor, [filePath, ...vimOptions], {
     stdio: "inherit",
   });
 

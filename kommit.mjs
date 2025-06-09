@@ -106,7 +106,7 @@ async function getReflogTemplates() {
           }
         : undefined;
     })
-    .filter((l) => Boolean(l));
+    .filter(Boolean);
 }
 
 async function getLogTemplates() {
@@ -201,7 +201,7 @@ async function getTemplateWithMetadata({ content }, stagedChanges) {
     "",
     ...(await $`git diff --staged --no-ext-diff`).lines(),
   ]
-    .map((s) => (Boolean(s) ? `# ${s}` : s))
+    .map((s) => (s ? `# ${s}` : s))
     .join("\n");
 
   return `${content}\n\n${metadata}`;
@@ -237,7 +237,7 @@ async function captureUserInput(filePath, { vimOptions = [] }) {
   const commitMessage = fileContent
     .split("\n")
     .map((l) => l.trim())
-    .filter((l) => Boolean(l))
+    .filter(Boolean)
     .filter((l) => !l.startsWith("#"))
     .join("\n");
 
@@ -262,7 +262,7 @@ async function main() {
   try {
     const commitMessage = await captureUserInput(messageFilePath, template);
 
-    if (!Boolean(argv.debug)) {
+    if (!argv.debug) {
       await $`git commit -n --message ${commitMessage}`;
     } else {
       echo(commitMessage);

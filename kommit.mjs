@@ -3,7 +3,6 @@
 $.quiet = true;
 
 const CONTENT_WIDTH = 60;
-const TYPE_WIDTH = 20;
 const KEY_WORDS_WIDTH = 75;
 
 const FZF_DELIMITER = "\t\t";
@@ -48,10 +47,18 @@ const templates = [
   {
     // https://github.com/ohmyzsh/ohmyzsh/blob/788eaa5930eeafceb0cc43f338b0bacf7a2e36a8/plugins/git/git.plugin.zsh#L365
     content: "--wip-- [skip ci]",
-    type: "wip",
+    keywords: ["wip"],
     always: true,
   },
 ];
+
+const currentTmpFiles = [];
+
+function createTempFile(content) {
+  const filePath = tmpfile("kommit", content);
+  currentTmpFiles.push(filePath);
+  return filePath;
+}
 
 async function getAndVerifyStagedChanges() {
   const stagedChanges = await $`git diff --cached --name-status`.lines();
@@ -64,7 +71,9 @@ async function getAndVerifyStagedChanges() {
   return stagedChanges;
 }
 
-function getPredefinedTemplates(ticketNumber) {
+async function getStaticTemplates() {
+  const ticketNumber = await getTicketNumber();
+
   const conventionalTemplates = CONVENTIONAL_COMMITS.flatMap((cc) =>
     templates
       .filter(({ content }) => content.includes(COMMIT_TYPE))
@@ -84,18 +93,18 @@ function getPredefinedTemplates(ticketNumber) {
       ({ content, always }) =>
         Boolean(ticketNumber) === content.includes(TICKET_NUMBER) || always,
     )
-    .map((t) => ({
+    .map((t, index) => ({
       ...t,
       content: t.content.replace(TICKET_NUMBER, ticketNumber),
       keywords: [...(t.keywords ?? [])],
-      type: t.type ?? "template",
+      id: `predefined-${index}`,
     }));
 }
 
 async function getReflogTemplates() {
   return (await $`git reflog`)
     .lines()
-    .map((l) => {
+    .map((l, index) => {
       const match = l.match(
         /^(\w+)\s+([^\s]+):\scommit(?:\s\([^)]+\))?:\s(.*)/,
       );
@@ -109,7 +118,7 @@ async function getReflogTemplates() {
               // symbolic
               match[2],
             ],
-            type: "reflog",
+            id: `reflog-${index}`,
           }
         : undefined;
     })
@@ -117,24 +126,18 @@ async function getReflogTemplates() {
 }
 
 async function getLogTemplates() {
-  return (await $`git log --pretty=format:"%h|%s"`).lines().map((l) => {
+  return (await $`git log --pretty=format:"%h|%s"`).lines().map((l, index) => {
     const [hash, ...messageParts] = l.split("|");
 
     return {
       content: messageParts[0],
       keywords: [hash],
-      type: "log",
+      id: `log-${index}`,
     };
   });
 }
 
-async function getTemplate(ticketNumber) {
-  const allTemplates = [
-    ...getPredefinedTemplates(ticketNumber),
-    ...(await getLogTemplates()),
-    ...(await getReflogTemplates()),
-  ].map((o, index) => ({ ...o, id: index }));
-
+function renderFzfLine({ id, content, keywords }, { isHeader }) {
   const truncateWithDotsAndPad = (string, length, direction) => {
     if (!string) {
       return "";
@@ -150,28 +153,39 @@ async function getTemplate(ticketNumber) {
       : string.padEnd(length);
   };
 
-  const renderFzfLine = ({ id, content, type, keywords }, { isHeader }) => {
-    const contentFragment = isHeader ? "Content" : content;
-    const typeFragment = isHeader
-      ? "Type"
-      : type.charAt(0).toUpperCase() + type.slice(1).toLowerCase();
-    const keywordsFragment = isHeader
-      ? "Keywords"
-      : keywords?.join(" ").toLowerCase();
+  const contentFragment = isHeader ? "Content" : content;
+  const keywordsFragment = isHeader ? "Keywords" : keywords?.join(" ");
 
-    const fragments = [
-      ...((isHeader && []) || [id]),
-      truncateWithDotsAndPad(contentFragment, CONTENT_WIDTH, "right"),
-      truncateWithDotsAndPad(typeFragment, TYPE_WIDTH, "right"),
-      truncateWithDotsAndPad(keywordsFragment, KEY_WORDS_WIDTH, "right"),
-    ];
+  const fragments = [
+    ...((isHeader && []) || [id]),
+    truncateWithDotsAndPad(contentFragment, CONTENT_WIDTH, "right"),
+    truncateWithDotsAndPad(keywordsFragment, KEY_WORDS_WIDTH, "right"),
+  ];
 
-    return fragments.join(FZF_DELIMITER);
+  return fragments.join(FZF_DELIMITER);
+}
+
+async function askUserForTemplate() {
+  const allTemplates = {
+    static: await getStaticTemplates(),
+    log: await getLogTemplates(),
+    reflog: await getReflogTemplates(),
   };
+  const files = {};
 
-  const chosenTemplateId = await $({
-    input: allTemplates.map(renderFzfLine).join("\n"),
-  })`${[
+  Object.keys(allTemplates).forEach((type) => {
+    allTemplates[type] = allTemplates[type].map((t, templateIndex) => ({
+      ...t,
+      id: `${type}:${templateIndex}`,
+      type,
+    }));
+
+    files[type] = createTempFile(
+      allTemplates[type].map(renderFzfLine).join("\n"),
+    );
+  });
+
+  const chosenTemplateId = await $`cat ${files.static}`.pipe`${[
     "fzf",
     "--accept-nth=1",
     "--border",
@@ -179,6 +193,9 @@ async function getTemplate(ticketNumber) {
     "--color=hl:#5f87af,hl+:#5fd7ff,info:#afaf87,marker:#87ff00",
     "--color=prompt:#d7005f,spinner:#af5fff,pointer:#af5fff,header:#87afaf",
     "--exact",
+    `--bind=ctrl-r:reload(cat ${files.reflog})`,
+    `--bind=ctrl-l:reload(cat ${files.log})`,
+    `--bind=ctrl-d:reload(cat ${files.static})`,
     "--height=~100%",
     "--highlight-line",
     "--no-ignore-case",
@@ -192,10 +209,12 @@ async function getTemplate(ticketNumber) {
   ]}
 `.text();
 
-  return allTemplates.find(({ id }) => id === +chosenTemplateId);
+  return Object.values(allTemplates)
+    .flatMap((t) => t)
+    .find(({ id }) => id === chosenTemplateId.trim());
 }
 
-async function getTemplateWithMetadata({ content }, stagedChanges) {
+async function getPrefilText({ content }, stagedChanges) {
   const metadata = [
     "Files changed:",
     ...stagedChanges,
@@ -213,15 +232,9 @@ async function getTicketNumber() {
   return branchName.match(/^\w+\/((?:\w+?-)?\d+)/)?.[1];
 }
 
-async function createMessageFile(withContent) {
-  const messageFilePath = await tmpfile("kommit", withContent);
+async function letUserRefineMessage(content, { vimOptions = [] }) {
+  const filePath = await createTempFile(content);
 
-  const cleanUpCallback = () => $`rm ${messageFilePath}`;
-
-  return [messageFilePath, cleanUpCallback];
-}
-
-async function captureUserInput(filePath, { vimOptions = [] }) {
   const getLastModified = async () => (await $`stat -f %m ${filePath}`).text();
 
   const lastModifiedBaseline = await getLastModified();
@@ -255,16 +268,13 @@ async function captureUserInput(filePath, { vimOptions = [] }) {
 
 async function main() {
   const stagedChanges = await getAndVerifyStagedChanges();
-  const ticketNumber = await getTicketNumber();
-  const template = await getTemplate(ticketNumber);
-  const templateWithMetadata = await getTemplateWithMetadata(
-    template,
-    stagedChanges,
-  );
-  const [messageFilePath, cleanUpCallback] =
-    await createMessageFile(templateWithMetadata);
+  const chosenTemplate = await askUserForTemplate();
+  const prefilText = await getPrefilText(chosenTemplate, stagedChanges);
   try {
-    const commitMessage = await captureUserInput(messageFilePath, template);
+    const commitMessage = await letUserRefineMessage(
+      prefilText,
+      chosenTemplate,
+    );
 
     if (!argv.debug) {
       await $`git commit -n --message ${commitMessage}`;
@@ -272,7 +282,7 @@ async function main() {
       echo(commitMessage);
     }
   } finally {
-    await cleanUpCallback();
+    await $`rm ${currentTmpFiles.join(" ")}`;
   }
 }
 

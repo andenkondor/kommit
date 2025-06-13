@@ -94,18 +94,17 @@ async function getStaticTemplates() {
       ({ content, always }) =>
         Boolean(ticketNumber) === content.includes(TICKET_NUMBER) || always,
     )
-    .map((t, index) => ({
+    .map((t) => ({
       ...t,
       content: t.content.replace(TICKET_NUMBER, ticketNumber),
       keywords: [...(t.keywords ?? [])],
-      id: `predefined-${index}`,
     }));
 }
 
 async function getReflogTemplates() {
   return (await $`${["git", "reflog"]}`)
     .lines()
-    .map((l, index) => {
+    .map((l) => {
       const match = l.match(
         /^(\w+)\s+([^\s]+):\scommit(?:\s\([^)]+\))?:\s(.*)/,
       );
@@ -119,7 +118,6 @@ async function getReflogTemplates() {
               // symbolic
               match[2],
             ],
-            id: `reflog-${index}`,
           }
         : undefined;
     })
@@ -127,13 +125,12 @@ async function getReflogTemplates() {
 }
 
 async function getLogTemplates() {
-  return (await $`git log --pretty=format:"%h|%s"`).lines().map((l, index) => {
+  return (await $`git log --pretty=format:"%h|%s"`).lines().map((l) => {
     const [hash, ...messageParts] = l.split("|");
 
     return {
       content: messageParts[0],
       keywords: [hash],
-      id: `log-${index}`,
     };
   });
 }

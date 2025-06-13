@@ -9,6 +9,7 @@ Kommit is a simple command-line tool that helps you create conventional commit m
 - Intelligently extracts ticket/issue number from your current branch
 - Opens your editor to complete the commit message
 - Aborts the commit if the message is empty
+- Supports switching between different message sources (git reflog and git log) using keybindings
 
 ## Requirements
 
@@ -48,4 +49,18 @@ The resulting commit message will look like:
 ```
 feat(JIRA-123): <Your commit message here>
 ```
+
+## Message Sources
+
+Kommit allows you to use previous commit messages as a base for your new commit. You can switch between different sources:
+
+- **Git Reflog**: Shows your recent commit history including all references
+- **Git Log**: Shows the commit history of the current branch
+
+Use the following keybindings to switch between sources:
+- `Ctrl+R`: Switch to git reflog view
+- `Ctrl+L`: Switch to git log view
+- `Ctrl+D`: Return to default view
+
+This makes it easy to reference or reuse previous commit messages while maintaining consistency in your commit history.
 

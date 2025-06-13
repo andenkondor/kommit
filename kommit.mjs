@@ -223,10 +223,10 @@ async function askUserForTemplate() {
     .find(({ id }) => id === chosenTemplateId.trim());
 }
 
-async function getPrefilText({ content }, stagedChanges) {
+async function getPrefilText({ content }, stagedFiles) {
   const metadata = [
     "Files changed:",
-    ...stagedChanges,
+    ...stagedFiles,
     "",
     ...(await $`${["git", "diff", "--staged", "--no-ext-diff"]}`).lines(),
   ]

@@ -61,7 +61,8 @@ function createTempFile(content) {
 }
 
 async function getAndVerifyStagedChanges() {
-  const stagedChanges = await $`git diff --cached --name-status`.lines();
+  const stagedChanges =
+    await $`${["git", "diff", "--cached", "--name-status"]}`.lines();
 
   if (!stagedChanges?.length) {
     echo(chalk.red("no staged changes"));
@@ -102,7 +103,7 @@ async function getStaticTemplates() {
 }
 
 async function getReflogTemplates() {
-  return (await $`git reflog`)
+  return (await $`${["git", "reflog"]}`)
     .lines()
     .map((l, index) => {
       const match = l.match(
@@ -230,7 +231,7 @@ async function getPrefilText({ content }, stagedChanges) {
     "Files changed:",
     ...stagedChanges,
     "",
-    ...(await $`git diff --staged --no-ext-diff`).lines(),
+    ...(await $`${["git", "diff", "--staged", "--no-ext-diff"]}`).lines(),
   ]
     .map((s) => (s ? `# ${s}` : s))
     .join("\n");
@@ -239,14 +240,16 @@ async function getPrefilText({ content }, stagedChanges) {
 }
 
 async function getTicketNumber() {
-  const branchName = argv.debug ?? (await $`git branch --show-current`.text());
+  const branchName =
+    argv.debug ?? (await $`${["git", "branch", "--show-current"]}`.text());
   return branchName.match(/^\w+\/((?:\w+?-)?\d+)/)?.[1];
 }
 
 async function letUserRefineMessage(content, { vimOptions = [] }) {
   const filePath = await createTempFile(content);
 
-  const getLastModified = async () => (await $`stat -f %m ${filePath}`).text();
+  const getLastModified = async () =>
+    (await $`${["stat", "-f", "%m", filePath]}`).text();
 
   const lastModifiedBaseline = await getLastModified();
 
@@ -288,7 +291,7 @@ async function main() {
     );
 
     if (!argv.debug) {
-      await $`git commit -n --message ${commitMessage}`;
+      await $`${["git", "commit", "-n", "--message", commitMessage]}`;
     } else {
       echo(commitMessage);
     }

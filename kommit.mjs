@@ -66,7 +66,7 @@ async function getAndVerifyStagedChanges() {
 
   if (!stagedChanges?.length) {
     echo(chalk.red("no staged changes"));
-    process.exit(1);
+    throw new Error("no staged changes");
   }
 
   return stagedChanges;
@@ -258,7 +258,7 @@ async function letUserRefineMessage(content, { vimOptions = [] }) {
 
   if (lastModifiedBaseline === (await getLastModified())) {
     echo(chalk.red("file hasn't changed."));
-    process.exit(1);
+    throw new Error("file hasn't changed.");
   }
 
   const fileContent = await fs.readFileSync(filePath, { encoding: "utf8" });
@@ -271,17 +271,18 @@ async function letUserRefineMessage(content, { vimOptions = [] }) {
 
   if (!commitMessage) {
     echo(chalk.red("empty commit message"));
-    process.exit(1);
+    throw new Error("empty commit message");
   }
 
   return commitMessage;
 }
 
 async function main() {
-  const stagedChanges = await getAndVerifyStagedChanges();
-  const chosenTemplate = await askUserForTemplate();
-  const prefilText = await getPrefilText(chosenTemplate, stagedChanges);
+  let exitCode = 0;
   try {
+    const stagedChanges = await getAndVerifyStagedChanges();
+    const chosenTemplate = await askUserForTemplate();
+    const prefilText = await getPrefilText(chosenTemplate, stagedChanges);
     const commitMessage = await letUserRefineMessage(
       prefilText,
       chosenTemplate,
@@ -292,8 +293,13 @@ async function main() {
     } else {
       echo(commitMessage);
     }
+  } catch (e) {
+    exitCode = 1;
   } finally {
-    await $`rm ${currentTmpFiles.join(" ")}`;
+    if (currentTmpFiles.length) {
+      await $`${["rm", ...currentTmpFiles]}`;
+    }
+    process.exit(exitCode);
   }
 }
 
